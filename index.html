@@ -1,0 +1,760 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body style="margin:0">
+<title>Landfall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: app shell with a top bar and tabs. Brief tab is a form rail beside results; the other tabs are full-width lists and tables. Muted slate and steel palette, one quiet accent. */
+:root{
+  --bg:#F3F4F6; --surface:#FFFFFF; --sunken:#F7F8F9; --ink:#1E2730; --muted:#5E6B78; --faint:#8A95A1; --line:#E0E4E8; --line-strong:#CBD2D9;
+  --accent:#3F5F7F; --accent-ink:#FFFFFF; --accent-soft:#E7EDF3; --bar:#3F5F7F; --bar-dim:#A9B7C5;
+  --good:#3C6A52; --good-soft:#E6EFEA; --warn:#7F6428; --warn-soft:#F4EEDF; --bad:#8A4540; --bad-soft:#F3E5E3; --info:#4B5F73; --info-soft:#EAEEF2;
+  --shadow:0 1px 2px rgba(30,39,48,.05);
+  --f-body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#13171C; --surface:#1A2027; --sunken:#171C22; --ink:#E3E7EB; --muted:#9AA5B1; --faint:#7B8794; --line:#28313A; --line-strong:#364250;
+    --accent:#8FAECB; --accent-ink:#10161C; --accent-soft:#222D38; --bar:#8FAECB; --bar-dim:#46586A;
+    --good:#8DB9A0; --good-soft:#1E2B25; --warn:#D2B678; --warn-soft:#2D2819; --bad:#D79A94; --bad-soft:#2E1F1E; --info:#A5B6C7; --info-soft:#222B34;
+    --shadow:none; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#13171C; --surface:#1A2027; --sunken:#171C22; --ink:#E3E7EB; --muted:#9AA5B1; --faint:#7B8794; --line:#28313A; --line-strong:#364250;
+  --accent:#8FAECB; --accent-ink:#10161C; --accent-soft:#222D38; --bar:#8FAECB; --bar-dim:#46586A;
+  --good:#8DB9A0; --good-soft:#1E2B25; --warn:#D2B678; --warn-soft:#2D2819; --bad:#D79A94; --bad-soft:#2E1F1E; --info:#A5B6C7; --info-soft:#222B34;
+  --shadow:none; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.5}
+h1,h2,h3,h4,p{margin:0}
+a{color:var(--accent)}
+button{font-family:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* app bar */
+.appbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.appbar-in{max-width:1280px;margin-inline:auto;padding-inline:20px;display:flex;align-items:center;gap:20px;min-height:56px}
+.logo{display:flex;align-items:center;gap:9px;font-weight:700;font-size:16px;letter-spacing:-.01em;white-space:nowrap}
+.logo svg{display:block}
+.nav{display:flex;gap:2px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.tab{appearance:none;border:0;background:none;color:var(--muted);font:500 14px var(--f-body);padding:17px 12px 15px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+.tab .ct{font-family:var(--f-mono);font-size:11.5px;color:var(--faint);margin-left:6px}
+.bar-r{display:flex;align-items:center;gap:10px;margin-left:auto}
+.seed{font-size:12px;color:var(--muted);background:var(--sunken);border:1px solid var(--line);border-radius:999px;padding:3px 10px;white-space:nowrap}
+.icon-btn{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:6px;width:32px;height:32px;display:grid;place-items:center;cursor:pointer}
+.icon-btn:hover{color:var(--ink);border-color:var(--line-strong)}
+@media(max-width:820px){.seed{display:none}.appbar-in{gap:10px;padding-inline:16px;flex-wrap:wrap;padding-top:8px}.nav{order:3;flex:1 0 100%}.tab{padding:10px 12px}}
+
+.shell{max-width:1280px;margin-inline:auto;padding-inline:20px;padding-block:24px 56px}
+@media(max-width:820px){.shell{padding-inline:16px}}
+.page-h{display:flex;flex-direction:column;gap:4px;margin-bottom:20px}
+.crumb{font-size:12.5px;color:var(--muted)}
+.page-h h1{font-size:24px;font-weight:700;letter-spacing:-.015em;line-height:1.2;text-wrap:balance}
+.page-h p{color:var(--muted);max-width:75ch}
+
+.layout{display:grid;grid-template-columns:minmax(0,310px) minmax(0,1fr);gap:20px;align-items:start}
+@media(max-width:940px){.layout{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);min-width:0}
+.pad{padding:18px 20px}
+.card-h{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.card h2{font-size:16px;font-weight:600;line-height:1.3}
+.sub{color:var(--muted);font-size:13px}
+.lbl{font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+
+/* rail */
+.rail{position:sticky;top:76px;display:flex;flex-direction:column}
+@media(max-width:940px){.rail{position:static}}
+.rail form{display:flex;flex-direction:column;gap:14px;padding:18px 20px}
+.rail-h{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line)}
+.rail-h h2{font-size:15px}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field label{font-size:12.5px;font-weight:600;color:var(--ink)}
+.field .row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.val{font-family:var(--f-mono);font-size:12.5px;color:var(--muted)}
+select,input[type=number],input[type=text],input[type=url]{width:100%;font:14px var(--f-body);color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:6px;padding:7px 10px;min-width:0;height:36px}
+select:focus,input:focus{border-color:var(--accent)}
+input[type=range]{width:100%;accent-color:var(--accent);margin:2px 0}
+.check{display:flex;gap:9px;align-items:flex-start;font-size:13px}
+.check input{margin-top:3px;accent-color:var(--accent)}
+details{border-top:1px solid var(--line);padding-top:12px}
+summary{cursor:pointer;font-weight:600;font-size:13px;color:var(--ink)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.stack{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.rail-f{display:flex;gap:8px;padding:14px 20px;border-top:1px solid var(--line);background:var(--sunken);border-radius:0 0 8px 8px}
+.btn{appearance:none;font:600 13px var(--f-body);background:var(--accent);color:var(--accent-ink);border:1px solid var(--accent);border-radius:6px;padding:8px 14px;height:36px;cursor:pointer;white-space:nowrap}
+.btn:hover{filter:brightness(1.08)}
+.btn.sec{background:var(--surface);color:var(--ink);border-color:var(--line-strong)}
+.btn.sec:hover{background:var(--sunken);filter:none}
+.btn.sm{height:30px;padding:4px 10px;font-size:12.5px}
+
+/* results */
+.out{display:flex;flex-direction:column;gap:16px;min-width:0}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media(max-width:1100px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{padding:14px 16px;display:flex;flex-direction:column;gap:3px}
+.kpi .v{font-size:19px;font-weight:700;letter-spacing:-.01em;line-height:1.25;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.kpi .s{font-size:12.5px;color:var(--muted)}
+.rank{display:flex;flex-direction:column}
+.rrow{display:grid;grid-template-columns:22px minmax(80px,120px) minmax(0,1fr) 40px;gap:4px 12px;align-items:center;padding:11px 0;border-top:1px solid var(--line)}
+.rrow:first-child{border-top:0}
+.rrow .n{font-family:var(--f-mono);color:var(--faint);font-size:12px}
+.rrow .nm{font-weight:600}
+.meter{height:8px;background:var(--sunken);border-radius:999px;border:1px solid var(--line);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--bar-dim);border-radius:999px}
+.rrow.top1 .meter i{background:var(--bar)}
+.rrow .sc{font-family:var(--f-mono);text-align:right;font-size:13px;font-variant-numeric:tabular-nums}
+.why{grid-column:2 / -1;font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:500;border-radius:4px;padding:2px 8px;border:1px solid var(--line);background:var(--sunken);color:var(--muted);white-space:nowrap}
+.chip.good{background:var(--good-soft);color:var(--good);border-color:transparent}
+.chip.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.chip.bad{background:var(--bad-soft);color:var(--bad);border-color:transparent}
+.chip.acc{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.chip.info{background:var(--info-soft);color:var(--info);border-color:transparent}
+.linkbtn{appearance:none;background:none;border:0;padding:0;color:var(--accent);font:inherit;font-size:12.5px;text-decoration:underline;cursor:pointer}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;padding:9px 12px;border-bottom:1px solid var(--line-strong);background:var(--sunken);white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.hl td{background:var(--accent-soft)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px;margin:0}
+.kv dt{color:var(--muted)} .kv dd{margin:0}
+.note{font-size:12.5px;color:var(--muted);margin-top:10px}
+.models{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px}
+.model{border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0;background:var(--surface)}
+.model.rec{border-color:var(--accent);background:var(--accent-soft)}
+.model h3{font-size:15px;font-weight:600;display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.model .kv{font-size:13px;gap:4px 12px}
+.reason{border-left:3px solid var(--accent);background:var(--sunken);padding:10px 14px;margin-top:14px;font-size:13.5px;border-radius:0 6px 6px 0}
+.states{display:flex;flex-direction:column}
+.state{display:grid;grid-template-columns:minmax(120px,170px) minmax(0,1fr);gap:4px 20px;padding:14px 0;border-top:1px solid var(--line)}
+.state:first-child{border-top:0;padding-top:0}
+@media(max-width:620px){.state{grid-template-columns:minmax(0,1fr)}}
+.state h3{font-size:14.5px;font-weight:600}
+.state .pol{font-size:12px;color:var(--muted)}
+.state p{font-size:13.5px}
+.state .chk{margin-top:8px;display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}
+.gaps{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:13.5px}
+textarea{width:100%;min-height:200px;font:12.5px var(--f-mono);color:var(--ink);background:var(--sunken);border:1px solid var(--line-strong);border-radius:6px;padding:10px;margin-top:10px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+/* ledger */
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;align-items:center}
+.toolbar .grow{flex:1 1 220px;max-width:340px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.fbtn{appearance:none;font:500 13px var(--f-body);color:var(--muted);background:var(--surface);border:1px solid var(--line-strong);border-radius:6px;padding:5px 11px;cursor:pointer}
+.fbtn:hover{color:var(--ink)}
+.fbtn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.ledger{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,500px),1fr));gap:16px}
+.metric-h{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.metric h2{font-size:16px;margin-top:2px}
+.spread{font-family:var(--f-mono);font-size:12px;color:var(--warn);background:var(--warn-soft);padding:3px 8px;border-radius:4px;white-space:nowrap}
+.spread.one{color:var(--muted);background:var(--sunken);border:1px solid var(--line)}
+.srcs{display:flex;flex-direction:column;margin-top:10px}
+.src{display:grid;grid-template-columns:minmax(120px,175px) minmax(0,1fr) minmax(70px,auto);gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.src:first-child{border-top:0}
+@media(max-width:560px){.src{grid-template-columns:minmax(0,1fr) auto}.src .track{grid-column:1 / -1;order:3}}
+.src .who{font-size:13px;font-weight:600;min-width:0}
+.src .who small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+.track{position:relative;height:14px;background:linear-gradient(var(--line-strong),var(--line-strong)) center/100% 1px no-repeat}
+.track b{position:absolute;top:3px;height:8px;background:var(--bar);border-radius:2px;min-width:8px}
+.src .t{font-family:var(--f-mono);font-size:12.5px;text-align:right;white-space:nowrap}
+.axis{display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:11px;color:var(--faint);margin-top:6px}
+.why-box{margin-top:12px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+.why-box b{color:var(--ink)}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+
+/* signals / proof */
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.legend{display:flex;gap:8px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--line)}
+.formgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;align-items:end}
+.count{padding:10px 20px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);background:var(--sunken);border-radius:0 0 8px 8px}
+footer{margin-top:28px;color:var(--muted);font-size:12.5px;max-width:95ch;border-top:1px solid var(--line);padding-top:14px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:6px;font-size:13px;z-index:10}
+</style>
+
+<header class="appbar">
+  <div class="appbar-in">
+    <div class="logo">
+      <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="var(--accent)"/><path d="M6 15.5c3.2 0 3.2-2.5 6.4-2.5 2.2 0 3.1 1 5.6 1" fill="none" stroke="var(--accent-ink)" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="8" r="2.2" fill="var(--accent-ink)"/></svg>
+      Landfall
+    </div>
+    <nav class="nav" role="tablist" aria-label="Sections">
+      <button class="tab" role="tab" id="t-brief" aria-selected="true" aria-controls="p-brief" data-tab="brief">Decision brief</button>
+      <button class="tab" role="tab" id="t-ledger" aria-selected="false" aria-controls="p-ledger" data-tab="ledger">Ledger<span class="ct" id="lcount"></span></button>
+      <button class="tab" role="tab" id="t-signals" aria-selected="false" aria-controls="p-signals" data-tab="signals">Signals<span class="ct" id="scount"></span></button>
+      <button class="tab" role="tab" id="t-proof" aria-selected="false" aria-controls="p-proof" data-tab="proof">Provider proof</button>
+    </nav>
+    <div class="bar-r">
+      <span class="seed">Seed data · checked 10 Oct 2026</span>
+      <button class="icon-btn" id="theme" type="button" aria-label="Switch light or dark theme" title="Switch theme">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="shell">
+  <div class="page-h">
+    <div class="crumb" id="crumb"></div>
+    <h1 id="ph1"></h1>
+    <p id="ph2"></p>
+  </div>
+
+  <!-- BRIEF -->
+  <section id="p-brief" role="tabpanel" aria-labelledby="t-brief">
+    <div class="layout">
+      <aside class="card rail">
+        <div class="rail-h"><h2>Your centre</h2><button class="linkbtn" id="reset" type="button">Reset</button></div>
+        <form id="f" onsubmit="return false">
+          <div class="field"><label for="sector">Parent sector</label>
+            <select id="sector">
+              <option>Technology</option><option>BFSI</option><option>Engineering &amp; Manufacturing</option>
+              <option>Retail &amp; Consumer</option><option>Healthcare &amp; Pharma</option><option>Other</option>
+            </select></div>
+          <div class="field"><div class="row"><label for="hc">Headcount at month 24</label><span class="val" id="hcv">60</span></div>
+            <input type="range" id="hc" min="10" max="500" step="5" value="60"></div>
+          <div class="field"><div class="row"><label for="sr">Senior share (6+ years)</label><span class="val" id="srv">30%</span></div>
+            <input type="range" id="sr" min="10" max="60" step="5" value="30"></div>
+          <div class="field"><label for="capex">Capital investment (₹ crore)</label>
+            <input type="number" id="capex" min="0" step="1" value="8"></div>
+          <label class="check"><input type="checkbox" id="g2000"> <span>Parent is in the Forbes Global 2000 or Fortune 1000</span></label>
+          <div class="field"><label for="prio">Priority in the first year</label>
+            <select id="prio">
+              <option value="speed">Speed to first hire</option>
+              <option value="control">Ownership and IP control</option>
+              <option value="capital">Low upfront capital</option>
+            </select></div>
+          <details>
+            <summary>City weights (0 to 5)</summary>
+            <div class="stack">
+              <div class="field"><div class="row"><label for="w_cost">Payroll cost</label><span class="val" id="w_costv">3</span></div><input type="range" id="w_cost" min="0" max="5" value="3"></div>
+              <div class="field"><div class="row"><label for="w_depth">Hiring depth</label><span class="val" id="w_depthv">3</span></div><input type="range" id="w_depth" min="0" max="5" value="3"></div>
+              <div class="field"><div class="row"><label for="w_eco">Peer GCC density</label><span class="val" id="w_ecov">2</span></div><input type="range" id="w_eco" min="0" max="5" value="2"></div>
+              <div class="field"><div class="row"><label for="w_ret">Retention</label><span class="val" id="w_retv">1</span></div><input type="range" id="w_ret" min="0" max="5" value="1"></div>
+              <div class="field"><div class="row"><label for="w_sec">Sector fit</label><span class="val" id="w_secv">3</span></div><input type="range" id="w_sec" min="0" max="5" value="3"></div>
+            </div>
+          </details>
+          <details>
+            <summary>Assumptions</summary>
+            <div class="grid2">
+              <div class="field"><label for="fx">₹ per US$</label><input type="number" id="fx" value="95" min="60" step="0.5"></div>
+              <div class="field"><label for="oh">On-cost %</label><input type="number" id="oh" value="18" min="0" max="60"></div>
+              <div class="field"><label for="sqft">Sq ft per seat</label><input type="number" id="sqft" value="80" min="30"></div>
+              <div class="field"><label for="seat">Seats per head</label><input type="number" id="seat" value="0.8" min="0.3" max="1.2" step="0.05"></div>
+            </div>
+            <p class="sub" style="margin-top:8px">These four are our assumptions, not sourced figures. ₹95 is the mid-market rate seen in Aug to Sep 2026.</p>
+          </details>
+        </form>
+        <div class="rail-f"><button class="btn" id="copy" type="button">Copy brief</button><button class="btn sec" id="sample2" type="button">Try a BFSI example</button></div>
+      </aside>
+      <div class="out" id="out" aria-live="polite"></div>
+    </div>
+    <textarea id="btxt" hidden readonly aria-label="Brief as text"></textarea>
+  </section>
+
+  <!-- LEDGER -->
+  <section id="p-ledger" role="tabpanel" aria-labelledby="t-ledger" hidden>
+    <div class="toolbar">
+      <div class="grow"><input type="text" id="lq" placeholder="Search questions or sources" aria-label="Search the ledger"></div>
+      <div class="seg" id="lfilters" role="group" aria-label="Filter by topic"></div>
+    </div>
+    <div class="ledger" id="ledger"></div>
+  </section>
+
+  <!-- SIGNALS -->
+  <section id="p-signals" role="tabpanel" aria-labelledby="t-signals" hidden>
+    <div class="card">
+      <div class="filters">
+        <div class="field"><label for="sq">Search</label><input type="text" id="sq" placeholder="Company or provider"></div>
+        <div class="field"><label for="sc">City</label><select id="sc"></select></div>
+        <div class="field"><label for="ss">Sector</label><select id="ss"></select></div>
+        <div class="field"><label for="se">Evidence</label><select id="se"></select></div>
+      </div>
+      <div class="tablewrap"><table id="stable"></table></div>
+      <div class="count" id="scountline"></div>
+    </div>
+  </section>
+
+  <!-- PROOF -->
+  <section id="p-proof" role="tabpanel" aria-labelledby="t-proof" hidden>
+    <div class="card">
+      <div class="legend" id="legend"></div>
+      <div class="tablewrap"><table id="ptable"></table></div>
+    </div>
+    <div class="card pad" style="margin-top:16px">
+      <div class="card-h"><div><h2>Add an engagement</h2><p class="sub">Entries you add appear as pending and stay in this page only. In the product, the named client is asked to confirm.</p></div></div>
+      <form id="pform" class="formgrid" onsubmit="return false">
+        <div class="field"><label for="pp">Provider</label><input type="text" id="pp" placeholder="e.g. ANSR"></div>
+        <div class="field"><label for="pc">Client</label><input type="text" id="pc" placeholder="e.g. a retailer"></div>
+        <div class="field"><label for="pcity">City</label><input type="text" id="pcity" placeholder="e.g. Pune"></div>
+        <div class="field"><label for="pu">Public link as evidence</label><input type="url" id="pu" placeholder="https://"></div>
+        <div class="field"><button class="btn" type="submit" id="padd">Add as pending</button></div>
+      </form>
+      <p class="sub" id="pmsg" style="margin-top:10px" role="status"></p>
+    </div>
+  </section>
+
+  <footer>
+    Scores and estimates are decision aids built from the public figures in the Ledger. Pay medians come from Flexiple's tracked professionals (Aug 2026) and are not limited to GCCs. Incentive rules summarise published policies and need checking against the policy text before any filing. Not legal or tax advice.
+  </footer>
+</main>
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script>
+(function(){
+"use strict";
+var $=function(s){return document.querySelector(s)};
+var esc=function(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
+var nf=function(n){return Number(n).toLocaleString('en-IN')};
+var store={
+  get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},
+  set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}},
+  del:function(k){try{localStorage.removeItem(k)}catch(e){}}
+};
+var toastT;
+function toast(m){var t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(function(){t.hidden=true},2200)}
+
+/* ---------- DATA ---------- */
+var U={
+ vest:'https://www.theweek.in/wire-updates/business/2025/07/21/dcm52-biz-realty-gcc.html',
+ nz:'https://zinnov.com/centers-of-excellence/zinnov-nasscom-india-gcc-landscape-2026-report/',
+ nzpdf:'https://media.zinnov.com/wp-content/uploads/2026/05/zinnov-nasscom-india-gcc-landscape-2026-report.pdf',
+ fxstat:'https://flexiple.com/gcc/statistics', fxdir:'https://flexiple.com/gcc/india', fxcity:'https://flexiple.com/global-capability-centers/list-of-global-capability-centers-in-india', fxgcc:'https://flexiple.com/gcc',
+ jll:'https://www.jll.com/en-in/newsroom/india-s-gcc-expansion-hits-record-31-million',
+ tg:'https://www.deccanchronicle.com/southern-states/telangana/hyderabad-emerges-as-gcc-hub-hosts-20-of-indias-gccs-1945301',
+ unearth:'https://www.cxodigitalpulse.com/india-adds-183-gcc-units-in-h1-2026-as-hi-tech-expansion-leads-new-activity/',
+ fm:'https://www.outlookbusiness.com/economy-and-policy/centre-plans-national-gcc-framework-to-cut-red-tape-boost-global-investments',
+ coll:'https://realtynmore.com/indias-gcc-space-demand-set-reach-40-m-sq-colliers/',
+ anarock:'https://ianslive.in/gccs-account-for-45-pc-of-gross-office-leasing-in-india-during-jan-june--20260717163137',
+ wmtime:'https://www.wisemonk.io/blogs/timeline-to-launch-a-gcc-in-india', wmhub:'https://wisemonk.io/global-capability-centers-in-india', wmbot:'https://www.wisemonk.io/de/blogs/build-operate-transfer-india', wmfaq:'https://www.wisemonk.io/faqs/how-long-does-the-process-of-setting-up-a-gcc-in-india-typically-take',
+ calc:'https://calcguru.in/?p=3797', vlink:'https://vlinkinfo.com/blog/gcc-setup-india-guide', mondaq:'https://www.mondaq.com/pdf/1585920.pdf',
+ icra:'https://www.icra.in/Rating/DownloadResearchSummaryReport?id=6588',
+ zprem:'https://www.businessofgcc.com/gcc-data/reports/india-gcc-compensation-pulse-2026',
+ spag:'https://reputationtoday.in/gcc-talent-crunch-pushes-indian-leaders-to-rethink-comms-and-employer-branding/',
+ zyoin:'https://www.cxodigitalpulse.com/the-salary-race-in-indias-gccs-is-over-the-skills-chase-has-begun/',
+ t500:'https://india.entrepreneur.com/?p=80491',
+ khup:'https://khaitanco.com/thought-leadership/Uttar-Pradesh-releases-its-final-GCC-Policy',
+ bdo:'https://bdo.in/getmedia/ee3322eb-8399-4a67-b3b3-9a71ed9e6746/GCC-Policy_BDO-India_Karnataka-GCC-Policy-_Design_1.pdf',
+ bw:'https://businessworld.in/article/ktaka-gcc-policy-eyes-500-new-centres-50-bn-in-output-and-35-lakh-jobs-539683',
+ lawasia:'https://law.asia/india-gcc-growth/', icai:'https://global.icai.org/state-policy.html',
+ guj:'https://corporate.cyrilamarchandblogs.com/2025/03/key-highlights-of-gujarat-gcc-policy-2025-30/',
+ tfs:'https://thefinancestory.com/up-gcc-policy-introduced-aims-to-hit-its-1-trillion-economy',
+ costco:'https://finance.yahoo.com/news/us-retail-giant-costco-set-180417937.html',
+ voices:'https://www.aniisu.com/wp-content/uploads/2026/02/GCC-Voices-Monthly-Roundup-January-February-2026.pdf',
+ sights:'https://www.sightsinplus.com/editorial/major-gcc-announcements-in-2026-set-to-create-thousands-of-jobs-in-india/',
+ ceipal:'https://www.ceipal.com/resources/new-gccs-in-india-who-launched-whos-expanding-and-whos-coming-next-2024-2026',
+ hfs:'https://www.hfsresearch.com/research/accentures-ansr-innovation-business-strategy/',
+ everest:'https://www.deloitte.com/content/dam/assets-shared/docs/services/consulting/2026/everest-group-GCC-setup-capabilities-peak-matrix.pdf',
+ zin:'https://zinnov.com/?p=81649'
+};
+
+var CITIES=[
+ {id:'blr',name:'Bengaluru',st:['Karnataka'],swe:15.7,sr:32.5,count:487,hire:30,ret:0.5,disp:true,anchor:'Technology'},
+ {id:'hyd',name:'Hyderabad',st:['Telangana'],swe:10.4,sr:24.2,count:273,hire:15,ret:0.5,disp:true,anchor:'Technology; recent non-tech launches'},
+ {id:'pune',name:'Pune',st:['Maharashtra'],swe:9.5,sr:22.3,count:178,hire:12,ret:0.5,disp:false,anchor:'BFSI and automotive'},
+ {id:'chn',name:'Chennai',st:['Tamil Nadu'],swe:7.6,sr:19.1,count:162,hire:9,ret:1,disp:false,anchor:'Engineering and manufacturing'},
+ {id:'mum',name:'Mumbai',st:['Maharashtra'],swe:9.7,sr:22.8,count:207,hire:11,ret:0.5,disp:false,anchor:'BFSI'},
+ {id:'ncr',name:'Delhi NCR',st:['Haryana','Uttar Pradesh'],swe:14.1,sr:24.0,count:272,hire:8,ret:0.5,disp:false,anchor:'Diverse corporate services'}
+];
+var FIT={
+ 'Technology':{blr:1,hyd:1,pune:.5,chn:.5,mum:.5,ncr:.75},
+ 'BFSI':{blr:.5,hyd:.5,pune:1,chn:.5,mum:1,ncr:.75},
+ 'Engineering & Manufacturing':{blr:.5,hyd:.5,pune:1,chn:1,mum:.5,ncr:.75},
+ 'Retail & Consumer':{blr:.5,hyd:.8,pune:.5,chn:.5,mum:.5,ncr:.75},
+ 'Healthcare & Pharma':{blr:.5,hyd:.8,pune:.5,chn:.5,mum:.5,ncr:.75},
+ 'Other':{blr:.5,hyd:.5,pune:.5,chn:.5,mum:.5,ncr:.75}
+};
+var STATES=[
+ {k:'Karnataka',pol:'GCC Policy 2024 to 2029',txt:'Targets 500 new centres. Innovation-lab capex funding of up to 40% (max ₹5 cr) in Bengaluru Urban and up to 75% (max ₹3 cr) Beyond Bengaluru. Small “nano” centres of 5 to 50 people qualify Beyond Bengaluru with no minimum jobs or investment.',u:U.bdo,u2:U.bw},
+ {k:'Maharashtra',pol:'GCC Policy 2025',txt:'Targets about 400 new centres and 400,000 jobs. Plans GCC parks in Mumbai, Pune, Nagpur and Nashik, a facilitation cell and 24x7 operating approvals.',u:U.lawasia},
+ {k:'Tamil Nadu',pol:'Payroll subsidy scheme, to March 2027',txt:'Aims to bring 50 centres. Eligibility is limited to Forbes Global 2000 and Fortune 1000 parents that commit at least 200 direct jobs.',u:U.fxstat},
+ {k:'Telangana',pol:'2nd ICT Policy 2021 to 2026',txt:'Land, electricity and employment-linked support. The published policy window ends this year, and we could not fetch a GCC-specific successor. Confirm current terms before relying on this.',u:U.icai},
+ {k:'Uttar Pradesh',pol:'GCC Policy 2024, notified 7 May 2025',txt:'Land subsidy of 30 to 50% by region, full stamp duty exemption, capital subsidy, 5% interest subsidy and opex subsidy on lease, bandwidth and power. Payroll subsidies apply to specified employee groups.',u:U.khup},
+ {k:'Haryana',pol:'GCC Policy 2025',txt:'Referenced as the policy for Gurugram. We have not captured its terms yet.',u:U.lawasia},
+ {k:'Gujarat',pol:'GCC Policy 2025 to 2030',txt:'Targets at least 250 new units, 50,000 jobs and ₹10,000 cr of investment, with GIFT City as the anchor location.',u:U.guj},
+ {k:'Andhra Pradesh',pol:'GCC Policy 4.0, 2024 to 2029',txt:'Announced 7 February 2025. Terms not captured yet.',u:U.tfs},
+ {k:'Madhya Pradesh',pol:'GCC Policy 2025',txt:'Launched 14 February 2025 with a tier-2 focus. Terms not captured yet.',u:U.tfs}
+];
+var METRICS=[
+ {id:'count',cat:'Market size',q:'How many GCCs are there in India?',unit:'',why:'Reports count different things. Some count parent companies, others count individual centres, and the as-of dates range from mid-2025 to FY2026. The 536 is a verified directory and not an estimate of the whole market.',items:[
+  {s:'Flexiple directory',d:'Aug 2026',lo:536,hi:536,t:'536 verified',n:'Verified set, not a census',u:U.fxdir},
+  {s:'Vestian',d:'Jul 2025',lo:1700,hi:1700,t:'about 1,700',n:'',u:U.vest},
+  {s:'Nasscom–Zinnov',d:'FY2026',lo:2117,hi:2117,t:'2,117 GCCs',n:'Parent companies',u:U.nz},
+  {s:'Nasscom–Zinnov',d:'FY2026',lo:3728,hi:3728,t:'3,728 units',n:'Individual centres',u:U.nz}]},
+ {id:'blr',cat:'Cities',q:'How many GCCs are in Bengaluru?',unit:'',why:'Centres versus units, a 2025 versus a 2026 base, and one widely shared table that cites no underlying source (the Flexiple statistics page says so itself).',items:[
+  {s:'Vestian',d:'Jul 2025',lo:487,hi:487,t:'487 (29%)',n:'',u:U.vest},
+  {s:'Flexiple city page',d:'2026',lo:870,hi:870,t:'about 870 (40%)',n:'',u:U.fxcity},
+  {s:'JLL',d:'Feb 2026',lo:900,hi:900,t:'900+ units (34–39%)',n:'Units, not parents',u:U.jll}]},
+ {id:'hyd',cat:'Cities',q:'How many GCCs are in Hyderabad?',unit:'',why:'A share quoted from a state outlook against a count from a real estate consultant. We derived the second figure by applying 20% to the 2,117 national count.',items:[
+  {s:'Vestian',d:'Jul 2025',lo:273,hi:273,t:'273 (16%)',n:'',u:U.vest},
+  {s:'Telangana outlook',d:'2026',lo:423,hi:423,t:'about 20% ≈ 423',n:'Derived by us: 20% × 2,117',u:U.tg}]},
+ {id:'pace',cat:'New GCCs',q:'How many new GCCs open each year?',unit:'per year',why:'Periods and definitions differ. We annualised each figure ourselves. Some count only greenfield centres, others include expansions and units. One a day, the strongest claim, has no stated basis.',items:[
+  {s:'Flexiple tracker',d:'Jan 2025 to Aug 2026',lo:29,hi:29,t:'48 ≈ 29/yr',n:'Only centres traced to a company statement',u:U.fxstat},
+  {s:'Nasscom–Zinnov',d:'FY2026',lo:100,hi:100,t:'100+ in FY26',n:'',u:U.nzpdf},
+  {s:'JLL',d:'to early 2026',lo:100,hi:100,t:'200+ in 2 yrs ≈ 100/yr',n:'',u:U.jll},
+  {s:'UnearthIQ',d:'H1 2026',lo:146,hi:146,t:'73 greenfield in H1 ≈ 146/yr',n:'Plus 110 expansions in the same half',u:U.unearth},
+  {s:'Finance Minister',d:'Aug 2026',lo:365,hi:365,t:'“nearly one a day” ≈ 365',n:'Basis not stated',u:U.fm}]},
+ {id:'lease25',cat:'Real estate',q:'How much office space did GCCs lease in 2025?',unit:'msf',why:'Two brokers, two methods. Colliers counts gross absorption in Grade A buildings and excludes renewals and pre-commitments.',items:[
+  {s:'JLL',d:'2025',lo:31,hi:31,t:'31 msf',n:'Record year',u:U.jll},
+  {s:'Colliers',d:'2025',lo:28,hi:28,t:'about 28 msf',n:'As quoted on the Flexiple stats page',u:U.fxstat}]},
+ {id:'leaseh1',cat:'Real estate',q:'How much did GCCs lease in H1 2026?',unit:'msf',why:'Both cover the top seven cities, but city sets, deal definitions and revisions differ.',items:[
+  {s:'Colliers',d:'H1 2026',lo:16.6,hi:16.6,t:'16.6 msf (46%)',n:'',u:U.coll},
+  {s:'ANAROCK',d:'H1 2026',lo:19.2,hi:19.2,t:'19.2 msf (45%)',n:'',u:U.anarock}]},
+ {id:'rent',cat:'Real estate',q:'What does prime office space cost?',unit:'US$ per sq ft per month',why:'One national range from a rating agency. We found no sourced city-level series, so Landfall applies the same range to every city. This is a known gap.',items:[
+  {s:'ICRA',d:'Oct 2025',lo:1,hi:2,t:'$1 to $2',n:'Prime offices, national',u:U.icra}]},
+ {id:'time',cat:'Cost and time',q:'How long until a GCC is operating?',unit:'months',why:'Different end points. Some measure entity formation, some the first hire, some a full-scale centre. Most figures come from firms that sell setup services.',items:[
+  {s:'Mondaq (law firm)',d:'',lo:1,hi:3,t:'1–3 mo',n:'Entity formation only',u:U.mondaq},
+  {s:'Wisemonk',d:'2026',lo:4,hi:6,t:'4–6 mo',n:'20 to 50 people',u:U.wmtime},
+  {s:'Wisemonk FAQ',d:'',lo:6,hi:8,t:'6–8 mo',n:'Decision to operational',u:U.wmfaq},
+  {s:'Wisemonk',d:'2026',lo:9,hi:12,t:'9–12+ mo',n:'200+ people',u:U.wmtime},
+  {s:'VLink',d:'2026',lo:18,hi:36,t:'18–36 mo',n:'BOT, then transfer to captive',u:U.vlink}]},
+ {id:'cost',cat:'Cost and time',q:'What does year one cost?',unit:'US$ million',why:'Different team sizes, scopes and time frames. The two build-operate-transfer figures differ most because one covers 20 people over 24 months and the other a short setup.',items:[
+  {s:'Calcguru',d:'2026',lo:0.5,hi:3,t:'$0.5–3M',n:'Own entity, 50-person plan',u:U.calc},
+  {s:'Wisemonk',d:'2026',lo:0.5,hi:3,t:'$0.5–3M',n:'Setup in 3 to 6 months',u:U.wmhub},
+  {s:'Calcguru',d:'2026',lo:0.3,hi:1,t:'$0.3–1M',n:'BOT, 2 to 4 months',u:U.calc},
+  {s:'Wisemonk',d:'2026',lo:0.8,hi:2,t:'$0.8–2M',n:'BOT, 20 people, 24 months',u:U.wmbot}]},
+ {id:'eor',cat:'Cost and time',q:'What does an employer of record charge per head?',unit:'US$ per person per month',why:'A pure employer-of-record fee against a managed-team fee that includes more services. The scope behind each number is not always stated.',items:[
+  {s:'Calcguru',d:'2026',lo:99,hi:99,t:'about $99',n:'Near-zero setup',u:U.calc},
+  {s:'Flexiple managed teams',d:'2026',lo:299,hi:299,t:'$299',n:'Salary billed at cost',u:U.fxgcc}]},
+ {id:'prem',cat:'Talent',q:'How much more do GCCs pay?',unit:'%',why:'Three different baselines. Zinnov compares GCCs with IT services. The others describe premiums for scarce skills.',items:[
+  {s:'Zinnov',d:'2025–26',lo:15,hi:22,t:'15–22%',n:'GCC pay over IT services',u:U.zprem},
+  {s:'Zyoin',d:'2026',lo:30,hi:40,t:'30–40%',n:'Skill premium',u:U.zyoin},
+  {s:'SPAG FINN',d:'2025',lo:30,hi:50,t:'30–50%',n:'Niche tech talent',u:U.spag}]},
+ {id:'attr',cat:'Talent',q:'What is GCC attrition?',unit:'%',why:'Voluntary versus total attrition, and different survey panels. One Bengaluru GCC head quoted 3%, so panels hide wide variation.',items:[
+  {s:'Talent500 (ANSR)',d:'2024',lo:12.6,hi:12.6,t:'12.6% voluntary',n:'',u:U.t500},
+  {s:'Zyoin',d:'2026',lo:14,hi:14,t:'about 14%',n:'',u:U.zyoin},
+  {s:'Talent500 (ANSR)',d:'2024',lo:16.9,hi:16.9,t:'16.9% overall',n:'',u:U.t500},
+  {s:'SPAG FINN',d:'2025',lo:15,hi:20,t:'15–20%',n:'',u:U.spag}]}
+];
+var SIGNALS=[
+ {co:'Costco',city:'Hyderabad',sec:'Retail',scale:'1,000 initially',ev:'Sources say',when:'Early 2026',prov:'',pub:'Reuters',u:U.costco},
+ {co:'LPL Financial',city:'Hyderabad',sec:'BFSI',scale:'Not stated',ev:'Announced',when:'Jan–Feb 2026',prov:'',pub:'GCC Voices roundup',u:U.voices},
+ {co:'BASF',city:'Hyderabad',sec:'Chemicals',scale:'Digital hub',ev:'Announced',when:'Jan–Feb 2026',prov:'',pub:'GCC Voices roundup',u:U.voices},
+ {co:'Unilever',city:'Hyderabad',sec:'Consumer',scale:'Not stated',ev:'Evaluating',when:'Jan–Feb 2026',prov:'',pub:'GCC Voices roundup',u:U.voices},
+ {co:'Nestlé Business Solutions',city:'Hyderabad',sec:'Consumer',scale:'Not stated',ev:'Announced',when:'2026',prov:'Genpact',pub:'Sightsinplus',u:U.sights},
+ {co:'Eli Lilly',city:'Hyderabad',sec:'Pharma',scale:'Up to 1,500 by 2026–27',ev:'Announced',when:'2026',prov:'',pub:'Ceipal tracker',u:U.ceipal},
+ {co:'N-able',city:'Bengaluru',sec:'Software',scale:'Workforce +50% in 2026',ev:'Announced',when:'2026',prov:'',pub:'Sightsinplus',u:U.sights},
+ {co:'GI Outsourcing (UK)',city:'Not stated',sec:'Not stated',scale:'AI-first centre',ev:'Announced',when:'Jan–Feb 2026',prov:'Enablr',pub:'GCC Voices roundup',u:U.voices},
+ {co:'Carlsberg',city:'Not stated',sec:'Consumer',scale:'Two centres',ev:'Announced',when:'2026',prov:'',pub:'Ceipal tracker',u:U.ceipal}
+];
+var TIERS=[
+ {k:'both',l:'Both sides confirmed',c:'good'},
+ {k:'cp',l:'Counterparty named',c:'acc'},
+ {k:'media',l:'Media-reported',c:'info'},
+ {k:'claim',l:'Provider-claimed',c:'warn'},
+ {k:'analyst',l:'Analyst-rated',c:'info'}
+];
+var PROV=[
+ {p:'ANSR',type:'GCC-as-a-service, subscription',says:'Zero-capex setup and run model',proof:'Rated a Leader in the Everest PEAK Matrix for GCC setup in India, 2026. HFS covers Accenture’s acquisition of ANSR.',tiers:['analyst','media'],gap:'No named client engagements captured yet',u:U.everest,u2:U.hfs},
+ {p:'Zinnov',type:'Consultancy',says:'200+ GCC set-ups',proof:'Data Axle, Storable, Raksul and Wayfair are named in press coverage that cites Zinnov’s own account.',tiers:['claim','media'],gap:'Clients have not confirmed scope or outcome',u:U.zin},
+ {p:'Genpact',type:'Operations partner',says:'',proof:'Named as partner on Nestlé Business Solutions’ Hyderabad GCC.',tiers:['cp'],gap:'Outcome and timeline unknown',u:U.sights},
+ {p:'Enablr',type:'GCC enabler',says:'',proof:'Named as partner on GI Outsourcing’s AI-first GCC.',tiers:['media'],gap:'City and scale not stated',u:U.voices},
+ {p:'Wisemonk',type:'Employer of record and GCC setup',says:'Publishes the timeline and cost benchmarks that appear across the Ledger',proof:'No client engagements captured.',tiers:['claim'],gap:'Sells the service it benchmarks',u:U.wmtime},
+ {p:'Flexiple',type:'Host of this tool. Disclosed affiliation.',says:'Managed teams and GCC setup',proof:'Listed for transparency. Excluded from any ranking by rule.',tiers:['claim'],gap:'Neutrality rule applies',u:U.fxgcc,self:true}
+];
+var pending=[];
+
+/* ---------- BRIEF ---------- */
+var W=['cost','depth','eco','ret','sec'];
+function readP(){
+  var g=function(id){return $('#'+id)};
+  var w={};W.forEach(function(k){w[k]=+g('w_'+k).value});
+  var num=function(id,d){var v=parseFloat(g(id).value);return isNaN(v)?d:v};
+  return {sector:g('sector').value,hc:+g('hc').value,sr:+g('sr').value/100,capex:Math.max(0,num('capex',0)),g2000:g('g2000').checked,prio:g('prio').value,
+    fx:num('fx',95)>0?num('fx',95):95,oh:Math.max(0,num('oh',18))/100,sqft:num('sqft',80)>0?num('sqft',80):80,seat:num('seat',0.8)>0?num('seat',0.8):0.8,w:w};
+}
+function blend(c,p){return (1-p.sr)*c.swe+p.sr*c.sr}
+function money(n){return n>=1e6?'$'+(n/1e6).toFixed(2)+'M':'$'+Math.round(n/1e3)+'k'}
+function crore(usd,fx){var cr=usd*fx/1e7;return '₹'+(cr>=100?Math.round(cr):cr.toFixed(1))+' cr'}
+function costFor(c,p){
+  var lo=blend(c,p)*p.hc*1e5*(1+p.oh)/p.fx, hi=lo*1.22;
+  var sq=Math.ceil(p.hc*p.seat)*p.sqft, rl=sq*1*12, rh=sq*2*12;
+  return {lo:lo,hi:hi,rl:rl,rh:rh,al:(lo+rl)/0.75,ah:(hi+rh)/0.70};
+}
+function scoreAll(p){
+  var bl=CITIES.map(function(c){return blend(c,p)});
+  var mn=Math.min.apply(null,bl), mx=Math.max.apply(null,bl);
+  var sumW=W.reduce(function(a,k){return a+p.w[k]},0);
+  var rows=CITIES.map(function(c,i){
+    var comp={cost:mx>mn?1-(bl[i]-mn)/(mx-mn):1,depth:c.hire/30,eco:c.count/487,ret:c.ret,sec:FIT[p.sector][c.id]};
+    var contrib={};var tot=0;
+    W.forEach(function(k){contrib[k]=sumW?p.w[k]*comp[k]/sumW*100:0;tot+=contrib[k]});
+    return {c:c,comp:comp,contrib:contrib,score:tot,bl:bl[i]};
+  });
+  rows.sort(function(a,b){return b.score-a.score});
+  return rows;
+}
+var LBL={cost:'low payroll cost',depth:'hiring depth',eco:'peer GCC density',ret:'retention',sec:'sector fit'};
+function whyFor(r){
+  var ks=W.slice().sort(function(a,b){return r.contrib[b]-r.contrib[a]}).slice(0,2);
+  return 'Strongest on '+LBL[ks[0]]+' and '+LBL[ks[1]];
+}
+var ROUTE={eor:'Employer of record',bridge:'Bridge, then own entity',bot:'Build-operate-transfer',captive:'Own entity'};
+function modelInfo(p){
+  var hc=p.hc;
+  var capT=hc<=50?'4–6 months':hc<=200?'6–9 months':'9–12+ months';
+  var eorLo=hc*12*99, eorHi=hc*12*299;
+  var rec,reason,first;
+  if(hc<25){rec='eor';first='Days to 6 weeks';reason='Under 25 people, both Flexiple and Calcguru say an employer of record is the better start. An entity costs more than it saves at this size.'}
+  else if(p.prio==='speed'){rec='bridge';first='Weeks';reason='You ranked speed first. Start hiring through an employer of record or a build-operate-transfer partner within weeks, and form your own entity in parallel.'}
+  else if(p.prio==='control'){rec='captive';first='Days to weeks, via a bridge';reason='You ranked ownership first and plan '+hc+' people. An own entity wins past about 25 people. Bridge the first hires through an employer of record while it registers.'}
+  else{rec='bot';first='4 to 8 weeks';reason='You ranked low upfront capital first. A build-operate-transfer partner carries the setup cost and hands the entity over later. Check the transfer terms in the contract.'}
+  return {capT:capT,eorLo:eorLo,eorHi:eorHi,rec:rec,reason:reason,first:first};
+}
+function uk(p){
+  var ncrAdv=p.capex>=75||p.hc>=500, ncrL1=p.capex>=20||p.hc>=200;
+  var oAdv=p.capex>=50||p.hc>=300, oL1=p.capex>=15||p.hc>=100;
+  var f=function(a,l){return a?'Advanced':l?'Level-1':'below Level-1'};
+  return {met:ncrL1||oL1,text:'Noida and Ghaziabad: '+f(ncrAdv,ncrL1)+'. Rest of Uttar Pradesh: '+f(oAdv,oL1)+'. Level-1 needs ₹20 cr or 200 jobs in Noida and Ghaziabad, ₹15 cr or 100 jobs elsewhere. You have ₹'+p.capex+' cr and '+p.hc+' people.'};
+}
+function check(st,p){
+  if(st==='Tamil Nadu'){
+    var bad=[];if(!p.g2000)bad.push('parent is not marked Global 2000 or Fortune 1000');if(p.hc<200)bad.push('needs 200 direct jobs and you plan '+p.hc);
+    return bad.length?{c:'bad',l:'Not eligible',t:'Fails: '+bad.join('; ')+'.'}:{c:'good',l:'Meets stated rules',t:'Parent profile and job commitment both meet the published eligibility.'};
+  }
+  if(st==='Uttar Pradesh'){var r=uk(p);return {c:r.met?'good':'warn',l:r.met?'Meets Level-1':'Below thresholds',t:r.text}}
+  if(st==='Karnataka'){
+    var t=p.hc<=50?'At '+p.hc+' people you can qualify as a nano GCC, but only if you locate Beyond Bengaluru.':p.hc>=100?'At '+p.hc+' people the 100+ employee tier applies Beyond Bengaluru.':'At '+p.hc+' people you are between the nano and 100+ bands. Skilling incentives apply to all centres.';
+    return {c:'acc',l:'Depends on location',t:t};
+  }
+  return {c:'',l:'Rules not captured',t:'We have the headline only. Read the policy text before planning around it.'};
+}
+function briefText(p,rows,m,top,cost){
+  var L=[];
+  L.push('GCC decision brief (Landfall prototype, seed data Oct 2026)');
+  L.push('Inputs: '+p.sector+', '+p.hc+' people at month 24, '+Math.round(p.sr*100)+'% senior, ₹'+p.capex+' cr capital.');
+  L.push('');L.push('City ranking:');
+  rows.forEach(function(r,i){L.push((i+1)+'. '+r.c.name+' '+Math.round(r.score)+'/100')});
+  L.push('');L.push('Top city '+top.c.name+': payroll '+money(cost.lo)+' to '+money(cost.hi)+' per year at '+p.hc+' people; all-in '+money(cost.al)+' to '+money(cost.ah)+'.');
+  L.push('Route: '+ROUTE[m.rec]+'. '+m.reason);
+  L.push('');L.push('Caveats: city rent is a national range; pay medians are not GCC-only; incentive rules need checking against policy text.');
+  return L.join('\n');
+}
+function render(){
+  var p=readP();
+  $('#hcv').textContent=p.hc;$('#srv').textContent=Math.round(p.sr*100)+'%';
+  W.forEach(function(k){$('#w_'+k+'v').textContent=p.w[k]});
+  var rows=scoreAll(p), top=rows[0], cost=costFor(top.c,p), m=modelInfo(p);
+  var cheapest=rows.slice().sort(function(a,b){return a.bl-b.bl})[0];
+  var h='';
+  // summary strip
+  h+='<div class="kpis">';
+  h+='<div class="card kpi"><span class="lbl">Recommended city</span><span class="v">'+esc(top.c.name)+'</span><span class="s">Score '+Math.round(top.score)+' of 100</span></div>';
+  h+='<div class="card kpi"><span class="lbl">Payroll per year</span><span class="v">'+money(cost.lo)+' – '+money(cost.hi)+'</span><span class="s">'+p.hc+' people, '+Math.round(p.sr*100)+'% senior</span></div>';
+  h+='<div class="card kpi"><span class="lbl">All-in per year</span><span class="v">'+money(cost.al)+' – '+money(cost.ah)+'</span><span class="s">Payroll plus office</span></div>';
+  h+='<div class="card kpi"><span class="lbl">Suggested route</span><span class="v">'+esc(ROUTE[m.rec])+'</span><span class="s">First hire: '+esc(m.first)+'</span></div>';
+  h+='</div>';
+  // ranking
+  h+='<div class="card pad"><div class="card-h"><div><h2>City ranking</h2><p class="sub">'+esc(whyFor(top))+'. Anchor sector in '+esc(top.c.name)+': '+esc(top.c.anchor)+'.</p></div></div><div class="rank">';
+  rows.forEach(function(r,i){
+    var dis=r.c.disp?'<span class="chip warn">Count disputed</span> <button class="linkbtn" data-go="'+r.c.id+'" type="button">See sources</button>':'<span class="chip">Single-source count</span>';
+    var delta=r.bl>cheapest.bl?'<span class="chip">Payroll +'+Math.round((r.bl/cheapest.bl-1)*100)+'% vs '+esc(cheapest.c.name)+'</span>':'<span class="chip good">Lowest payroll</span>';
+    h+='<div class="rrow'+(i===0?' top1':'')+'"><span class="n">'+(i+1)+'</span><span class="nm">'+esc(r.c.name)+'</span><div class="meter" role="img" aria-label="Score '+Math.round(r.score)+' of 100"><i style="width:'+r.score.toFixed(1)+'%"></i></div><span class="sc">'+Math.round(r.score)+'</span>';
+    h+='<div class="why"><span>'+esc(whyFor(r))+'</span>'+delta+dis+'</div></div>';
+  });
+  h+='</div><details style="margin-top:12px"><summary>How the score works</summary><p class="sub" style="margin-top:8px">Each city gets five 0 to 1 components. Payroll cost is the blended median pay at your senior share, scaled from cheapest to dearest. Hiring depth is the city share of GCC hiring (Bengaluru 30%, Hyderabad 15%, Pune 12%, Mumbai 11%, Chennai 9%, NCR 8%) over 30. Peer density is the Vestian GCC count over 487. Retention is 1 for Chennai, the only city with a sourced lowest-attrition signal, and 0.5 elsewhere. Sector fit is 1 for a published anchor sector, 0.75 for NCR (diverse), 0.8 for Hyderabad on consumer and pharma launches, otherwise 0.5. The score is the weighted average of the five times 100.</p></details></div>';
+  // cost
+  h+='<div class="card pad"><div class="card-h"><div><h2>What '+p.hc+' people cost in '+esc(top.c.name)+'</h2><p class="sub">Run-rate at month 24, per year. Ranges, not point estimates.</p></div></div>';
+  h+='<dl class="kv"><dt>Payroll</dt><dd><b>'+money(cost.lo)+' to '+money(cost.hi)+'</b> ('+crore(cost.lo,p.fx)+' to '+crore(cost.hi,p.fx)+')</dd>';
+  h+='<dt>Office</dt><dd><b>'+money(cost.rl)+' to '+money(cost.rh)+'</b> at $1 to $2 per sq ft per month</dd>';
+  h+='<dt>All-in</dt><dd><b>'+money(cost.al)+' to '+money(cost.ah)+'</b>, since ICRA puts people and rent at 70 to 75% of GCC cost</dd></dl>';
+  h+='<div class="tablewrap" style="margin-top:14px;border:1px solid var(--line);border-radius:6px"><table><thead><tr><th>City</th><th class="num">Blended median</th><th class="num">Payroll low</th><th class="num">Payroll high</th><th class="num">All-in range</th></tr></thead><tbody>';
+  rows.forEach(function(r){var c=costFor(r.c,p);h+='<tr'+(r===top?' class="hl"':'')+'><td>'+esc(r.c.name)+'</td><td class="num">₹'+r.bl.toFixed(1)+'L</td><td class="num">'+money(c.lo)+'</td><td class="num">'+money(c.hi)+'</td><td class="num">'+money(c.al)+' – '+money(c.ah)+'</td></tr>'});
+  h+='</tbody></table></div><p class="note">Low end is the market median plus on-cost. High end adds the 22% top of the 15 to 22% GCC premium over IT services (Zinnov). Medians are Flexiple tracked software engineers and senior (6+ years) professionals, not GCC-only.</p></div>';
+  // route
+  var recSet={eor:{eor:'Suggested'},bridge:{eor:'Step 1',captive:'Step 2'},bot:{bot:'Suggested'},captive:{captive:'Suggested'}}[m.rec];
+  var mk=function(id,name,body){var tag=recSet[id];return '<div class="model'+(tag?' rec':'')+'"><h3>'+name+(tag?'<span class="chip acc">'+tag+'</span>':'')+'</h3>'+body+'</div>'};
+  h+='<div class="card pad"><div class="card-h"><div><h2>Which route</h2><p class="sub">Three ways in. The sources disagree on cost and time, so each figure links to the Ledger.</p></div></div><div class="models">';
+  h+=mk('eor','Employer of record','<dl class="kv"><dt>First hire</dt><dd>Days to 6 weeks</dd><dt>Fees, year 1</dt><dd>'+money(m.eorLo)+' to '+money(m.eorHi)+' for '+p.hc+' people</dd><dt>Control</dt><dd>Low. Weaker IP control.</dd><dt>Fits</dt><dd>Under 25 to 40 people</dd></dl><div><button class="linkbtn" data-go="eor" type="button">$99 vs $299 per head in the Ledger</button></div>');
+  h+=mk('bot','Build-operate-transfer','<dl class="kv"><dt>First hire</dt><dd>4 to 8 weeks</dd><dt>Cost</dt><dd>$0.3–1M or $0.8–2M, by source</dd><dt>Control</dt><dd>Phased. Transfer terms matter.</dd><dt>Fits</dt><dd>Low capital, 25+ people</dd></dl><div><button class="linkbtn" data-go="cost" type="button">Compare cost figures</button></div>');
+  h+=mk('captive','Own entity','<dl class="kv"><dt>Operational</dt><dd>'+m.capT+' at your size</dd><dt>Cost, year 1</dt><dd>$0.5–3M for a 50-person plan</dd><dt>Control</dt><dd>Full</dd><dt>Fits</dt><dd>25+ people, long horizon</dd></dl><div><button class="linkbtn" data-go="time" type="button">Compare timelines</button></div>');
+  h+='</div><div class="reason"><b>'+esc(ROUTE[m.rec])+'.</b> '+esc(m.reason)+'</div></div>';
+  // incentives
+  var order=STATES.slice().sort(function(a,b){var ta=top.c.st.indexOf(a.k)>=0?0:1,tb=top.c.st.indexOf(b.k)>=0?0:1;return ta-tb});
+  h+='<div class="card pad"><div class="card-h"><div><h2>State incentives</h2><p class="sub">'+esc(top.c.st.join(' and '))+' first. Checks run against your inputs where the published rules are clear. The national framework is still a draft, and setup involves 30+ approvals.</p></div></div><div class="states">';
+  order.forEach(function(s){
+    var ck=check(s.k,p);
+    h+='<div class="state"><div><h3>'+esc(s.k)+'</h3><div class="pol">'+esc(s.pol)+'</div></div><div><p>'+esc(s.txt)+'</p><div class="chk"><span class="chip '+ck.c+'">'+esc(ck.l)+'</span><span class="sub">'+esc(ck.t)+'</span></div><p class="sub" style="margin-top:6px"><a href="'+s.u+'" target="_blank" rel="noopener">Source</a>'+(s.u2?' · <a href="'+s.u2+'" target="_blank" rel="noopener">Second source</a>':'')+'</p></div></div>';
+  });
+  h+='</div></div>';
+  // gaps
+  h+='<div class="card pad"><div class="card-h"><h2>What this brief cannot tell you yet</h2></div><ul class="gaps">'
+   +'<li>City-level rent. The office line uses one national range for every city.</li>'
+   +'<li>GCC-only pay by city. Medians cover all tracked professionals.</li>'
+   +'<li>Retention by city. Only Chennai has a sourced signal.</li>'
+   +'<li>Tier-2 cities. Hiring there grows 23% a year, nearly twice the metros (Business Today), and attrition is up to 30% lower (CBRE), but no city-level data is in the Ledger yet.</li>'
+   +'<li>Which provider fits you. See the Provider proof tab for how that will be evidenced.</li></ul></div>';
+  $('#out').innerHTML=h;
+  $('#btxt').value=briefText(p,rows,m,top,cost);
+  saveInputs();
+}
+
+/* inputs: remember and reset */
+var IDS=['sector','hc','sr','capex','prio','fx','oh','sqft','seat','w_cost','w_depth','w_eco','w_ret','w_sec'];
+var DEFAULTS={sector:'Technology',hc:'60',sr:'30',capex:'8',prio:'speed',fx:'95',oh:'18',sqft:'80',seat:'0.8',w_cost:'3',w_depth:'3',w_eco:'2',w_ret:'1',w_sec:'3',g2000:false};
+function setInputs(o){IDS.forEach(function(id){$('#'+id).value=o[id]});$('#g2000').checked=!!o.g2000}
+function saveInputs(){var o={};IDS.forEach(function(id){o[id]=$('#'+id).value});o.g2000=$('#g2000').checked;store.set('landfall.inputs',JSON.stringify(o))}
+function loadInputs(){
+  var s=store.get('landfall.inputs');if(!s)return;
+  try{var o=JSON.parse(s);var ok=IDS.every(function(id){return o[id]!==undefined});if(ok)setInputs(o)}catch(e){}
+}
+
+/* ---------- TABS ---------- */
+var PAGES={
+ brief:['Decision brief','Which city and route fit your centre','Enter a few facts about the centre you plan. Landfall ranks six cities, estimates cost, suggests a route and checks the state incentives that are clear enough to check.'],
+ ledger:['Ledger','Every figure, with its sources side by side','Each card shows what each publisher says about the same question and why the figures differ. Disagreement is shown, not averaged.'],
+ signals:['Signals','Announced and upcoming centres','Each row traces to a named publication. Evidence shows how firm the claim is. This is a seed list, not a census.'],
+ proof:['Provider proof','What can be checked about setup providers','Claims sorted by evidence. The top tier needs both the client and the provider to confirm an engagement, and no provider has reached it yet.']
+};
+function showTab(k){
+  if(!PAGES[k])k='brief';
+  ['brief','ledger','signals','proof'].forEach(function(t){
+    var on=t===k;$('#p-'+t).hidden=!on;$('#t-'+t).setAttribute('aria-selected',on?'true':'false');
+  });
+  $('#crumb').textContent='Landfall  /  '+PAGES[k][0];
+  $('#ph1').textContent=PAGES[k][1];$('#ph2').textContent=PAGES[k][2];
+  try{history.replaceState(null,'','#'+k)}catch(e){}
+}
+function goLedger(id){
+  lf='All';$('#lq').value='';renderLedger();showTab('ledger');
+  var el=document.getElementById('m-'+id);
+  if(el){el.scrollIntoView({block:'center'});el.style.outline='2px solid var(--accent)';setTimeout(function(){el.style.outline=''},1800)}
+}
+
+/* ---------- LEDGER ---------- */
+var lf='All';
+function spreadOf(m){
+  var lo=Math.min.apply(null,m.items.map(function(i){return i.lo})),hi=Math.max.apply(null,m.items.map(function(i){return i.hi}));
+  return {lo:lo,hi:hi,x:hi/lo};
+}
+function renderLedger(){
+  var cats=['All'];METRICS.forEach(function(m){if(cats.indexOf(m.cat)<0)cats.push(m.cat)});
+  $('#lfilters').innerHTML=cats.map(function(c){return '<button class="fbtn" type="button" data-f="'+esc(c)+'" aria-pressed="'+(c===lf)+'">'+esc(c)+'</button>'}).join('');
+  var q=$('#lq').value.trim().toLowerCase();
+  var list=METRICS.filter(function(m){
+    if(lf!=='All'&&m.cat!==lf)return false;
+    if(!q)return true;
+    var hay=(m.q+' '+m.cat+' '+m.items.map(function(i){return i.s+' '+i.n}).join(' ')).toLowerCase();
+    return hay.indexOf(q)>=0;
+  });
+  var h='';
+  list.forEach(function(m){
+    var sp=spreadOf(m),range=sp.hi-sp.lo||1,pad=range*0.04,mn=sp.lo-pad,mx=sp.hi+pad;
+    var one=m.items.length===1;
+    h+='<article class="card pad metric" id="m-'+m.id+'"><div class="metric-h"><div><span class="lbl">'+esc(m.cat)+'</span><h2>'+esc(m.q)+'</h2></div>';
+    h+=one?'<span class="spread one">single source</span>':'<span class="spread">'+(sp.x>=10?Math.round(sp.x):parseFloat(sp.x.toFixed(1)))+'× spread</span>';
+    h+='</div><div class="srcs">';
+    m.items.forEach(function(i){
+      var l=((i.lo-mn)/(mx-mn))*100,w=Math.max(((i.hi-i.lo)/(mx-mn))*100,1.2);
+      h+='<div class="src"><div class="who"><a href="'+i.u+'" target="_blank" rel="noopener">'+esc(i.s)+'</a><small>'+esc([i.d,i.n].filter(Boolean).join(' · '))+'</small></div>';
+      h+='<div class="track" aria-hidden="true"><b style="left:'+l.toFixed(2)+'%;width:'+w.toFixed(2)+'%"></b></div><div class="t">'+esc(i.t)+'</div></div>';
+    });
+    h+='</div><div class="axis"><span>'+nf(sp.lo)+'</span><span>'+esc(m.unit)+'</span><span>'+nf(sp.hi)+'</span></div>';
+    h+='<div class="why-box"><b>Why they differ.</b> '+esc(m.why)+'</div></article>';
+  });
+  if(!list.length)h='<div class="card empty" style="grid-column:1 / -1">No questions match that search. Clear the search or pick All.</div>';
+  $('#ledger').innerHTML=h;
+}
+
+/* ---------- SIGNALS ---------- */
+function opts(sel,vals,all){$(sel).innerHTML=['All '+all].concat(vals).map(function(v,i){return '<option value="'+(i?esc(v):'')+'">'+esc(v)+'</option>'}).join('')}
+function uniq(k){var a=[];SIGNALS.forEach(function(s){if(a.indexOf(s[k])<0)a.push(s[k])});return a.sort()}
+function renderSignals(){
+  var q=$('#sq').value.trim().toLowerCase(),c=$('#sc').value,s=$('#ss').value,e=$('#se').value;
+  var rows=SIGNALS.filter(function(r){
+    return (!c||r.city===c)&&(!s||r.sec===s)&&(!e||r.ev===e)&&(!q||(r.co+' '+r.prov).toLowerCase().indexOf(q)>=0);
+  });
+  var cls={'Announced':'good','Sources say':'warn','Evaluating':'info'};
+  var h='<thead><tr><th>Company</th><th>City</th><th>Sector</th><th>Scale</th><th>Evidence</th><th>Provider named</th><th>When</th><th>Source</th></tr></thead><tbody>';
+  if(!rows.length)h+='<tr><td colspan="8" class="empty">No centres match these filters. Clear a filter to see more.</td></tr>';
+  rows.forEach(function(r){
+    h+='<tr><td><b>'+esc(r.co)+'</b></td><td>'+esc(r.city)+'</td><td>'+esc(r.sec)+'</td><td>'+esc(r.scale)+'</td><td><span class="chip '+(cls[r.ev]||'')+'">'+esc(r.ev)+'</span></td><td>'+esc(r.prov||'—')+'</td><td>'+esc(r.when)+'</td><td><a href="'+r.u+'" target="_blank" rel="noopener">'+esc(r.pub)+'</a></td></tr>';
+  });
+  $('#stable').innerHTML=h+'</tbody>';
+  $('#scountline').textContent='Showing '+rows.length+' of '+SIGNALS.length+' centres';
+  $('#scount').textContent=SIGNALS.length;
+}
+
+/* ---------- PROOF ---------- */
+function tierChip(k){var t=TIERS.filter(function(x){return x.k===k})[0];return '<span class="chip '+t.c+'">'+esc(t.l)+'</span>'}
+function safeUrl(u){return /^https?:\/\//i.test(u)?u:''}
+function renderProof(){
+  $('#legend').innerHTML='<span class="sub" style="margin-right:4px">Evidence tiers:</span>'+TIERS.map(function(t){return tierChip(t.k)}).join('');
+  var h='<thead><tr><th>Provider</th><th>What they say</th><th>What is checkable</th><th>Evidence</th><th>Missing</th></tr></thead><tbody>';
+  pending.forEach(function(r){
+    var u=safeUrl(r.u);
+    h+='<tr><td><b>'+esc(r.p)+'</b><br><span class="sub">Added by you</span></td><td>—</td><td>Client: '+esc(r.c)+(r.city?' · '+esc(r.city):'')+(u?'<br><a href="'+esc(u)+'" target="_blank" rel="noopener">Evidence link</a>':'')+'</td><td><span class="chip warn">Pending verification</span></td><td>Awaiting client confirmation</td></tr>';
+  });
+  PROV.forEach(function(r){
+    h+='<tr><td><b>'+esc(r.p)+'</b><br><span class="sub">'+esc(r.type)+'</span></td><td>'+esc(r.says||'—')+'</td><td>'+esc(r.proof)+'<br><a href="'+r.u+'" target="_blank" rel="noopener">Source</a>'+(r.u2?' · <a href="'+r.u2+'" target="_blank" rel="noopener">Second source</a>':'')+'</td><td><div style="display:flex;gap:4px;flex-wrap:wrap">'+r.tiers.map(tierChip).join('')+'</div></td><td>'+esc(r.gap)+(r.self?' <span class="chip acc">Disclosed</span>':'')+'</td></tr>';
+  });
+  $('#ptable').innerHTML=h+'</tbody>';
+}
+
+/* ---------- INIT ---------- */
+function applyTheme(t){
+  if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);
+}
+function init(){
+  var th=store.get('landfall.theme');if(th)applyTheme(th);
+  $('#theme').addEventListener('click',function(){
+    var cur=document.documentElement.getAttribute('data-theme');
+    if(!cur)cur=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';
+    var nx=cur==='dark'?'light':'dark';applyTheme(nx);store.set('landfall.theme',nx);
+  });
+  $('#lcount').textContent=METRICS.length;
+  opts('#sc',uniq('city'),'cities');opts('#ss',uniq('sec'),'sectors');opts('#se',uniq('ev'),'evidence');
+  document.querySelectorAll('.tab').forEach(function(b){b.addEventListener('click',function(){showTab(b.getAttribute('data-tab'))})});
+  loadInputs();
+  $('#f').addEventListener('input',render);$('#f').addEventListener('change',render);
+  $('#reset').addEventListener('click',function(){setInputs(DEFAULTS);render();toast('Inputs reset')});
+  $('#sample2').addEventListener('click',function(){
+    var o={};Object.keys(DEFAULTS).forEach(function(k){o[k]=DEFAULTS[k]});
+    o.sector='BFSI';o.hc='250';o.capex='60';o.g2000=true;o.prio='control';setInputs(o);render();toast('Loaded a BFSI example: 250 people, ₹60 cr, Global 2000 parent');
+  });
+  $('#copy').addEventListener('click',function(){
+    var ta=$('#btxt');
+    var fallback=function(){ta.hidden=false;ta.focus();ta.select();toast('Select and copy the text shown below the brief')};
+    try{
+      if(navigator.clipboard&&navigator.clipboard.writeText){
+        navigator.clipboard.writeText(ta.value).then(function(){toast('Brief copied')},fallback);
+      }else{fallback()}
+    }catch(err){fallback()}
+  });
+  $('#out').addEventListener('click',function(e){var g=e.target.closest('[data-go]');if(g)goLedger(g.getAttribute('data-go'))});
+  $('#lfilters').addEventListener('click',function(e){var b=e.target.closest('[data-f]');if(b){lf=b.getAttribute('data-f');renderLedger()}});
+  $('#lq').addEventListener('input',renderLedger);
+  ['sq','sc','ss','se'].forEach(function(id){$('#'+id).addEventListener('input',renderSignals)});
+  $('#pform').addEventListener('submit',function(e){
+    e.preventDefault();
+    var p=$('#pp').value.trim(),c=$('#pc').value.trim(),u=$('#pu').value.trim();
+    if(!p||!c){$('#pmsg').textContent='Enter a provider and a client to add an engagement.';return}
+    if(u&&!safeUrl(u)){$('#pmsg').textContent='The evidence link must start with http:// or https://.';return}
+    pending.unshift({p:p,c:c,city:$('#pcity').value.trim(),u:u});
+    $('#pform').reset();$('#pmsg').textContent='Added as pending. It sits at the top of the table until the client confirms.';
+    renderProof();
+  });
+  render();renderLedger();renderSignals();renderProof();
+  var h=(location.hash||'').replace('#','');
+  showTab(PAGES[h]?h:'brief');
+}
+init();
+})();
+</script>
+
+</body>
+</html>
